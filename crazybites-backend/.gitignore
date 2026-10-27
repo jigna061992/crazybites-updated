@@ -1,0 +1,33 @@
+# crazybites-backend/.gitignore  (Laravel)
+/vendor/
+/node_modules/
+/public/build
+/public/hot
+/public/storage
+/storage/*.key
+/storage/pail
+
+# SECRETS
+.env
+.env.*
+!.env.example
+auth.json
+
+# local database
+/database/*.sqlite
+/database/*.sqlite-journal
+
+# tests / tools
+.phpunit.cache
+.phpunit.result.cache
+.phpactor.json
+Homestead.json
+Homestead.yaml
+
+# editor / OS / misc
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+*.log
+*.zip
