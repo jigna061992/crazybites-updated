@@ -558,3 +558,19 @@
 .cb-mascot .mc-orbit { transform-box: view-box; transform-origin: 130px 130px; animation: cbOrbit 22s linear infinite; }
 .cb-mascot .mc-twinkle { transform-box: fill-box; transform-origin: center; animation: cbTwinkle 2.4s ease-in-out infinite; }
 .cb-mascot .mc-twinkle.d2 { animation-delay: 1.2s; }
+/* ================= SELECT DROPDOWN OPTIONS ================= */
+/* Browser dropdown list was white with light text (unreadable). Force dark bg + light text. */
+select option,
+select optgroup {
+  background-color: #0d0a3a;
+  color: #f2f3ff;
+}
+select option:checked,
+select option:hover,
+select option:focus {
+  background-color: #4b3fd6;
+  color: #ffffff;
+}
+select option:disabled {
+  color: #7f84c8;
+}
