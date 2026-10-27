@@ -5,6 +5,7 @@ import api from "../api/axios";
 import ConnectWallet from "./ConnectWallet";
 import { linkWallet } from "../chain/deposit";
 import { payForSlot } from "../chain/chainPay";
+import { refreshWalletBalance } from "../chain/useWalletBalance";
 
 const CHAIN_MODE = import.meta.env.VITE_CHAIN_ENABLED === "true";
 // Admin "View as user" mode (read-only): activation / MetaMask payment band
@@ -20,7 +21,7 @@ const STATUS_UI = {
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 export default function InvestmentPage() {
-  const { onUserUpdate } = useOutletContext();
+  const { user, onUserUpdate } = useOutletContext();
 
   const [slots, setSlots] = useState([]);
   const [activationCompleted, setActivationCompleted] = useState(true);
@@ -46,7 +47,17 @@ export default function InvestmentPage() {
 
   // USDT deposit from the wallet: order -> approve + deposit -> poll until Laravel marks it paid
  const activateWithWallet = async (slot) => {
-  await linkWallet();
+  // The MetaMask account must be the wallet linked to THIS logged-in user
+  const accts = await window.ethereum.request({ method: "eth_accounts" });
+  const current = accts?.[0]?.toLowerCase();
+  const linked = user?.wallet_address?.toLowerCase();
+  if (linked) {
+    if (current !== linked) {
+      throw new Error(`Please switch MetaMask to your linked wallet (${linked.slice(0, 6)}...${linked.slice(-4)}).`);
+    }
+  } else {
+    await linkWallet();   // no wallet linked yet: link the selected MetaMask account
+  }
 
   const { data } = await api.post("/chain/orders", { slot_number: slot.slot_number });
     const stepText = {
@@ -70,6 +81,7 @@ export default function InvestmentPage() {
 
     if (o.status === "paid") {
       setMessage({ type: "success", text: "Slot activated!" });
+      refreshWalletBalance();   // update the wallet balance everywhere right away
       const me = await api.get("/user");
       onUserUpdate?.(me.data);
       fetchSlots();

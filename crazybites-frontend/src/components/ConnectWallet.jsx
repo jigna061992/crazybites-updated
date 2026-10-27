@@ -1,47 +1,40 @@
 import { useEffect, useState } from "react";
 import { useOutletContext } from "react-router-dom";
-import { BrowserProvider, Contract, formatUnits } from "ethers";
+import { BrowserProvider } from "ethers";
 import api from "../api/axios";
 import { CHAIN_ID_HEX, linkWallet, switchToTestnet } from "../chain/deposit";
+import useWalletBalance from "../chain/useWalletBalance";
 
-const USDT_ADDRESS = import.meta.env.VITE_USDT_ADDRESS;
-const USDT_ABI = ["function balanceOf(address) view returns (uint256)"];
+const short = (a) => `${a.slice(0, 6)}...${a.slice(-4)}`;
 
 export default function ConnectWallet() {
-  const { onUserUpdate } = useOutletContext();
+  const { user, onUserUpdate } = useOutletContext();
 
-  const [account, setAccount] = useState(null);
+  // Wallet saved for the LOGGED-IN user (from the database), not whatever MetaMask has selected
+  const savedWallet = user?.wallet_address ? String(user.wallet_address).toLowerCase() : null;
+
+  const [metaAccount, setMetaAccount] = useState(null);   // account currently selected in MetaMask
   const [onTestnet, setOnTestnet] = useState(false);
-  const [tbnb, setTbnb] = useState(null);
-  const [usdt, setUsdt] = useState(null);
   const [error, setError] = useState(null);
 
   const hasMetaMask = typeof window !== "undefined" && !!window.ethereum;
 
-  const refresh = async (addr) => {
+  const handleAccounts = (accounts) => {
+    setMetaAccount(accounts && accounts.length ? String(accounts[0]).toLowerCase() : null);
+  };
+
+  // Live balances of the user's linked wallet (read from the chain, auto refresh)
+  const { usdt, tbnb } = useWalletBalance(savedWallet, Boolean(savedWallet));
+
+  // Is MetaMask on the right network?
+  const checkNetwork = async () => {
     try {
       const provider = new BrowserProvider(window.ethereum);
       const net = await provider.getNetwork();
-      const ok = "0x" + net.chainId.toString(16) === CHAIN_ID_HEX;
-      setOnTestnet(ok);
-      setTbnb(formatUnits(await provider.getBalance(addr), 18));
-
-      if (ok && USDT_ADDRESS) {
-        const token = new Contract(USDT_ADDRESS, USDT_ABI, provider);
-        setUsdt(formatUnits(await token.balanceOf(addr), 18));
-      }
+      setOnTestnet("0x" + net.chainId.toString(16) === CHAIN_ID_HEX);
     } catch (e) {
       setError(e.message);
     }
-  };
-
-  const handleAccounts = (accounts) => {
-    if (!accounts || accounts.length === 0) {
-      setAccount(null);
-      return;
-    }
-    setAccount(accounts[0]);
-    refresh(accounts[0]);
   };
 
   useEffect(() => {
@@ -58,9 +51,24 @@ export default function ConnectWallet() {
     };
   }, []);
 
+  useEffect(() => {
+    if (hasMetaMask) checkNetwork();
+  }, [savedWallet]);
+
+  // Let the user pick which MetaMask account to use (account picker popup)
+  const pickAccount = async () => {
+    await window.ethereum.request({
+      method: "wallet_requestPermissions",
+      params: [{ eth_accounts: {} }],
+    });
+    handleAccounts(await window.ethereum.request({ method: "eth_accounts" }));
+  };
+
+  // First time: choose an account, then link it to this user
   const connect = async () => {
     setError(null);
     try {
+      await pickAccount();
       const address = await linkWallet();
       handleAccounts([address]);
 
@@ -71,15 +79,11 @@ export default function ConnectWallet() {
     }
   };
 
- // Popup to select another MetaMask account (e.g. Heena)
+  // Already linked: switch MetaMask to the linked account
   const switchAccount = async () => {
     setError(null);
     try {
-      await window.ethereum.request({
-        method: "wallet_requestPermissions",
-        params: [{ eth_accounts: {} }],
-      });
-      handleAccounts(await window.ethereum.request({ method: "eth_accounts" }));
+      await pickAccount();
     } catch (e) {
       setError(e.message);
     }
@@ -89,28 +93,39 @@ export default function ConnectWallet() {
     return <p className="text-sm text-red-600">MetaMask not found. Please install the extension.</p>;
   }
 
+  const mismatch = savedWallet && metaAccount !== savedWallet;
+
   return (
     <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-brand-100 bg-card p-4 shadow-sm">
-      {account ? (
+      {savedWallet ? (
         <>
           <span className="rounded-lg bg-brand-50 px-3 py-1.5 text-sm font-semibold text-brand-700">
-            {account.slice(0, 6)}...{account.slice(-4)}
+            {short(savedWallet)}
           </span>
           {!onTestnet && (
             <button onClick={switchToTestnet} className="rounded-lg bg-red-100 px-3 py-1.5 text-xs font-semibold text-red-700">
               Switch to BSC Testnet
             </button>
           )}
-          <span className="text-xs text-ink-600">{tbnb ? Number(tbnb).toFixed(4) : "-"} tBNB</span>
-          {usdt !== null && <span className="text-xs text-ink-600">{usdt} USDT</span>}
+          <span className="text-xs text-ink-600">{tbnb !== null ? tbnb.toFixed(4) : "-"} tBNB</span>
+          {usdt !== null && <span className="text-xs text-ink-600">{usdt.toLocaleString(undefined, { maximumFractionDigits: 2 })} USDT</span>}
           <button onClick={switchAccount} className="ml-auto rounded-lg border border-brand-200 px-3 py-1.5 text-xs font-semibold text-ink-700 hover:bg-brand-50">
             Switch account
           </button>
+          {mismatch && (
+            <p className="w-full text-xs text-gold-600">
+              MetaMask is on {metaAccount ? short(metaAccount) : "no account"}. Please switch MetaMask to your linked
+              wallet {short(savedWallet)} before activating a slot.
+            </p>
+          )}
         </>
       ) : (
-        <button onClick={connect} className="cb-btn cb-btn-sm">
-          Connect MetaMask
-        </button>
+        <>
+          <span className="text-sm text-ink-600">No wallet is linked to this account yet.</span>
+          <button onClick={connect} className="cb-btn cb-btn-sm ml-auto">
+            Connect MetaMask
+          </button>
+        </>
       )}
       {error && <p className="w-full text-xs text-red-600">{error}</p>}
     </div>

@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Link, useOutletContext } from "react-router-dom";
 import { Wallet, TrendingUp, ArrowUpCircle, ArrowDownCircle, ArrowUpFromLine, Gift, Crown, Building2, Send } from "lucide-react";
 import api from "../api/axios";
+import useWalletBalance, { CHAIN_MODE } from "../chain/useWalletBalance";
 
 const TYPE_LABEL = {
   credit: "Wallet Credit",
@@ -10,7 +11,7 @@ const TYPE_LABEL = {
   purchase: "Slot Purchase",
   reward: "Reward Wallet",
   rank_reward: "Rank Achievement",
-  rank_royalty: "Rank Royalty",       // 👈 NEW
+  rank_royalty: "Rank Royalty",       //  NEW
   royalty: "Royalty Wallet",
 };
 const TYPE_STYLE = {
@@ -20,12 +21,16 @@ const TYPE_STYLE = {
   purchase: "bg-red-100 text-red-700",
   reward: "bg-gold-100 text-gold-700",
   rank_reward: "bg-gold-200 text-gold-800",
-  rank_royalty: "bg-teal-200 text-teal-800",   // 👈 NEW
+  rank_royalty: "bg-teal-200 text-teal-800",   //  NEW
   royalty: "bg-brand-100 text-brand-700",
 };
 
 export default function MyEarningsPage() {
-  const { user } = useOutletContext();   // 👈 NEW — for the admin check
+  const { user } = useOutletContext();   // used for the admin check
+
+  // Chain mode: real USDT balance of the linked wallet (auto refresh)
+  const useChainBalance = CHAIN_MODE && !Boolean(Number(user.is_admin)) && Boolean(user.wallet_address);
+  const chainBal = useWalletBalance(user.wallet_address, useChainBalance);
 
   const [timeline, setTimeline] = useState([]);
   const [totals, setTotals] = useState({
@@ -112,7 +117,7 @@ export default function MyEarningsPage() {
           </div>
         </div>
 
-        {/* Reward Wallet — breakdown (matrix / rank) below */}
+        {/* Reward Wallet — breakdown (matrix / rank) niche */}
         <div className="flex flex-col gap-2 rounded-2xl border border-gold-200 bg-gold-50 p-5 shadow-sm">
           <div className="flex items-center gap-3">
             <span className="flex h-11 w-11 items-center justify-center rounded-full bg-gold-500 text-ink-50">
@@ -155,11 +160,11 @@ export default function MyEarningsPage() {
           </span>
           <div>
             <p className="text-xs text-brand-700">Wallet Balance</p>
-            <p className="text-xl font-bold text-brand-800">{money(Math.max(0, Number(totals.wallet_balance)))}</p>
+            <p className="text-xl font-bold text-brand-800">{money(useChainBalance ? (chainBal.usdt ?? 0) : Math.max(0, Number(totals.wallet_balance)))}</p>
           </div>
         </div>
 
-        {/* 👇 Company wallet cards — shown ONLY to the admin */}
+        {/* 👇 Company wallet cards — FAKT ADMIN ne j dekhay */}
         {Boolean(Number(user?.is_admin)) && (
           <>
             {/* Company Wallet — GLOBAL total */}

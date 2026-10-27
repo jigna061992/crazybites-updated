@@ -1,4 +1,5 @@
 import { useOutletContext } from "react-router-dom";
+import useWalletBalance, { CHAIN_MODE } from "../chain/useWalletBalance";
 import { useState } from "react";
 import { Copy, Check, Mail, Phone, Wallet, ShieldCheck, Link2 } from "lucide-react";
 import ReferralsTable from "./ReferralsTable";
@@ -47,7 +48,12 @@ function ReferralCard({ sponsorId, referralLink }) {
 export default function DashboardOverview() {
   const { user } = useOutletContext();
 
-  const wallet = Math.max(0, Number(user.wallet_balance ?? user.wallet_amount ?? 0));
+  const useChainBalance = CHAIN_MODE && Boolean(user.wallet_address);
+  const chainBal = useWalletBalance(user.wallet_address, useChainBalance);
+  // Chain mode: real USDT in the linked wallet; otherwise the in-app wallet balance
+  const wallet = useChainBalance
+    ? (chainBal.usdt ?? 0)
+    : Math.max(0, Number(user.wallet_balance ?? user.wallet_amount ?? 0));
   const isActive = user.user_status === "Active" || user.is_active;
   const initial = String(user.name || "U").trim().charAt(0).toUpperCase();
 
@@ -78,14 +84,14 @@ export default function DashboardOverview() {
         <div className="cb-stat"><span className={`cb-ico ${isActive ? "green" : ""}`}><ShieldCheck size={20} /></span><div className="min-w-0"><small>Account Status</small><b>{isActive ? "Active" : "Not Activated"}</b></div></div>
       </section>
 
-      <ReferralCard sponsorId={user.sponsor_id} referralLink={user.referral_link || `${window.location.origin}/signup?ref=${user.sponsor_id}`} />
+      <ReferralCard sponsorId={user.sponsor_id} referralLink={user.referral_link} />
 
       <div className="rounded-2xl border border-ink-200 bg-card p-5">
         <p className="mb-1 text-xs uppercase tracking-widest text-ink-500">Wallet Address</p>
         <WalletAddress address={user.wallet_address} full />
       </div>
 
-      {/* My sponsor's members */}
+      {/* Members I have sponsored */}
       <ReferralsTable limit={10} showViewAll />
     </div>
   );

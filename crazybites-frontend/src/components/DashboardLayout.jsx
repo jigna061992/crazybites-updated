@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { NavLink, Outlet, Link } from "react-router-dom";
+import { NavLink, Outlet } from "react-router-dom";
 import {
   LayoutDashboard, Users, ChevronDown, TrendingUp, Grid3x3,
   LogOut, Menu, X, Wallet, List, DollarSign, Award, Network,
@@ -7,8 +7,9 @@ import {
 import RankBadge from "./RankBadge";
 import BrandLogo from "./BrandLogo";
 import api from "../api/axios";
+import useWalletBalance, { CHAIN_MODE, formatUsd } from "../chain/useWalletBalance";
 
-// Sidebar link: hover / active effect in theme.css (.sb-link)
+// Sidebar link: the hover / active effect is defined in theme.css (.sb-link)
 const linkClass = ({ isActive }) => `sb-link${isActive ? " active" : ""}`;
 
 export default function DashboardLayout({ user, onLogout, onUserUpdate }) {
@@ -19,8 +20,14 @@ export default function DashboardLayout({ user, onLogout, onUserUpdate }) {
   const isAdmin = Boolean(Number(user.is_admin));
   const close = () => setSidebarOpen(false);
 
-  
-  //when Admin open user 's dashbord (View as user)
+  // Chain mode: show the real USDT balance of the user's linked wallet (auto refresh)
+  const useChainBalance = CHAIN_MODE && !isAdmin && Boolean(user.wallet_address);
+  const chainBal = useWalletBalance(user.wallet_address, useChainBalance);
+  const walletText = useChainBalance
+    ? (chainBal.usdt === null ? "…" : formatUsd(chainBal.usdt))
+    : `$${Math.max(0, Number(user.wallet_balance ?? 0)).toLocaleString()}`;
+
+  // While an admin is viewing a user's dashboard (View as user)
   const impersonating = Boolean(localStorage.getItem("admin_token_backup"));
   const backToAdmin = async () => {
     const adminToken = localStorage.getItem("admin_token_backup");
@@ -43,11 +50,8 @@ export default function DashboardLayout({ user, onLogout, onUserUpdate }) {
           sidebarOpen ? "translate-x-0 shadow-2xl" : ""
         }`}
       >
-        {/* Logo click -> Dashboard */}
         <div className="mb-5 mt-1 flex justify-center">
-          <Link to="/dashboard" onClick={close} aria-label="Go to dashboard">
-            <BrandLogo size={84} />
-          </Link>
+          <BrandLogo width={216} />
         </div>
 
         <nav className="flex flex-1 flex-col gap-1.5" aria-label="Main">
@@ -157,7 +161,7 @@ export default function DashboardLayout({ user, onLogout, onUserUpdate }) {
           )}
         </nav>
 
-        {/* Current rank (only for normal user) */}
+        {/* Current rank (normal users only) */}
         {!isAdmin && hasTier && (
           <div className="sb-rank mt-4">
             <RankBadge tier={tier} size={46} laurel />
@@ -181,7 +185,7 @@ export default function DashboardLayout({ user, onLogout, onUserUpdate }) {
         {impersonating && (
           <div className="flex flex-wrap items-center justify-center gap-3 border-b border-gold-400/60 bg-gold-100 px-4 py-2 text-sm text-gold-800">
             <span>
-              <b>View only</b> — tame <b>{user.name}</b>Dashbord can see only.Can not make any changes.
+              <b>View only</b> — you are viewing <b>{user.name}</b>&apos;s dashboard. No changes can be made.
             </span>
             <button type="button" onClick={backToAdmin} className="cb-btn cb-btn-sm">
               ← Back to Admin
@@ -198,18 +202,13 @@ export default function DashboardLayout({ user, onLogout, onUserUpdate }) {
             {sidebarOpen ? <X size={20} /> : <Menu size={20} />}
           </button>
 
-          {/* Mobile / responsive: Logo on top bar , click -> Dashboard */}
-          <Link to="/dashboard" onClick={close} aria-label="Go to dashboard" className="shrink-0 md:hidden">
-            <BrandLogo width={80} />
-          </Link>
-
           <div className="ml-auto flex items-center gap-2.5 sm:gap-3">
             {isAdmin && <span className="cb-pill-gold">ADMIN</span>}
 
             {!isAdmin && (
               <div className="cb-pill-gold" title="Wallet balance">
                 <Wallet size={15} />
-                <span>${Math.max(0, Number(user.wallet_balance ?? 0)).toLocaleString()}</span>
+                <span>{walletText}</span>
               </div>
             )}
 
