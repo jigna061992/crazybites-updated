@@ -1,0 +1,17 @@
+# crazybites/blockchain/.gitignore
+node_modules/
+artifacts/
+cache/
+typechain-types/
+coverage/
+coverage.json
+
+# SECRETS (private keys)
+.env
+wallets.json
+rank-test-wallets.json
+rank-test-orders.json
+
+# local output
+deploy-output.txt
+*.zip
