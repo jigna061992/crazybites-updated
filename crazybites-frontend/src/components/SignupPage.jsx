@@ -400,10 +400,11 @@ export default function SignupPage({ setUser }) {
             {submitMsg.text}
           </div>
         )}
-
+        {/*
         <div className="my-4 rounded-lg border border-brand-200 bg-brand-50 px-4 py-3 text-sm text-ink-700">
           <strong>Note:</strong> A one-time activation amount of <strong>₹50</strong> will be automatically processed upon successful registration. This activates your account and starts your ROI earning cycle (up to 3x return).
         </div>
+        */}
 
         <button
           type="submit"
